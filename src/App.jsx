@@ -7,7 +7,7 @@ const API = "https://opd-backend-685i.onrender.com";
 
 // Logo: replace with your actual logo URL or import
 // Option 1: URL
-const LOGO_URL = "/DAC.jpg"; // e.g. "https://yourdomain.com/logo.png"
+const LOGO_URL = null; // e.g. "https://yourdomain.com/logo.png"
 // Option 2: If using a local file, put logo.png in /public and use "/logo.png"
 // Option 3: Set to null to use the built-in text logo
 
@@ -285,15 +285,64 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-sm
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COUNTRY DATA (mirrors backend products.py for local display)
+// ═══════════════════════════════════════════════════════════════════════════════
+const COUNTRIES = {
+  cambodia: {
+    name: "Cambodia", code: "KH", flag: "\u{1F1F0}\u{1F1ED}", currency: "$",
+    regions: Object.keys(RGN),
+    market: { spend: "$122/capita", oop: "55%", uhc: 58, note: "Heavily privatized. 60% prefer private facilities. Many travel to Thailand/Singapore for major procedures." },
+    products: [
+      { id: "opd_visit", cat: "OPD", name: "Per-Visit Pricing", desc: "Consultations, lab tests, minor procedures", icon: "steth", features: ["12 specialties", "13 lab tests", "10 procedures", "Insurance discount 30%"] },
+      { id: "opd_annual", cat: "OPD", name: "Annual OPD Plan", desc: "Essential / Plus / Premium tiers", icon: "calendar", features: ["$180–$650/yr base", "12 to unlimited visits", "Lab + procedure allowances"] },
+      { id: "opd_pkg", cat: "OPD", name: "OPD Care Packages", desc: "Bundled care: screening, chronic, maternity, executive", icon: "package", features: ["4 package types", "15% bundle discount on add-ons", "Fixed pricing"] },
+      { id: "ipd_admission", cat: "IPD", name: "Per-Admission Pricing", desc: "Hospital stays, surgeries, ICU", icon: "bed", features: ["5 ward types (General to NICU)", "12 surgery categories", "Length-of-stay modeling"] },
+      { id: "ipd_annual", cat: "IPD", name: "Annual IPD Plan", desc: "Standard / Enhanced / Elite tiers", icon: "heart", features: ["$800–$3,200/yr base", "Surgery limits $5K–$50K", "Med-evac in Enhanced/Elite"] },
+      { id: "ipd_pkg", cat: "IPD", name: "Surgical Packages", desc: "Maternity, cardiac, orthopedic, general surgery", icon: "package", features: ["4 packages", "All-inclusive pricing", "$2,000–$7,000 range"] },
+      { id: "dental", cat: "Optional", name: "Dental Add-on", desc: "Cleanings, fillings, extractions", icon: "steth", features: ["$500 annual limit", "$120/yr premium"] },
+      { id: "maternity", cat: "Optional", name: "Maternity Add-on", desc: "Prenatal to delivery coverage", icon: "heart", features: ["$5,000 annual limit", "10-month waiting period"] },
+    ],
+  },
+  vietnam: {
+    name: "Vietnam", code: "VN", flag: "\u{1F1FB}\u{1F1F3}", currency: "$",
+    regions: ["Ho Chi Minh City", "Hanoi", "Da Nang", "Can Tho", "Hai Phong", "Rural Areas"],
+    market: { spend: "$190/capita", oop: "40%", uhc: 68, shi: "93% coverage via SHI (4.5% salary)", note: "Dual system: mandatory Social Health Insurance (SHI) at public facilities + voluntary Private Health Insurance (PHI). PHI popular with expats and high-income." },
+    products: [
+      { id: "opd_visit", cat: "OPD", name: "Per-Visit Pricing", desc: "Private facility consultations (supplements SHI)", icon: "steth", features: ["12 specialties", "13 lab tests + vaccination", "Prescription meds included", "SHI covers 80% at public"] },
+      { id: "opd_annual", cat: "OPD", name: "Annual OPD Plan", desc: "Essential / Plus / Premium — supplements SHI", icon: "calendar", features: ["$220–$780/yr base", "20% co-insurance (waived at panel)", "Vaccination in Plus/Premium"] },
+      { id: "opd_pkg", cat: "OPD", name: "OPD Care Packages", desc: "Screening, chronic care, maternity, executive", icon: "package", features: ["4 packages", "Includes NIPT screening", "Dietitian + lactation support"] },
+      { id: "ipd_admission", cat: "IPD", name: "Per-Admission Pricing", desc: "Private hospital stays and surgeries", icon: "bed", features: ["5 ward types", "12 surgeries", "$540–$25,000 range", "SHI covers 80% at public"] },
+      { id: "ipd_annual", cat: "IPD", name: "Annual IPD Plan", desc: "Standard / Enhanced / Elite", icon: "heart", features: ["$950–$3,800/yr base", "Surgery limits $6K–$60K", "Med-evac in Elite tier"] },
+      { id: "ipd_pkg", cat: "IPD", name: "Surgical Packages", desc: "Maternity, cardiac, orthopedic, general — at FV, Vinmec, etc.", icon: "package", features: ["4 packages", "Imported implants included", "$2,400–$8,200 range"] },
+      { id: "dental", cat: "Optional", name: "Dental Add-on", desc: "Preventive + basic procedures", icon: "steth", features: ["$600 annual limit", "$140/yr", "Root canal (partial)"] },
+      { id: "maternity", cat: "Optional", name: "Maternity Add-on", desc: "Private facility maternity", icon: "heart", features: ["$6,000 limit", "NIPT/amnio included", "Newborn 60-day coverage"] },
+      { id: "vision", cat: "Optional", name: "Vision/Optical", desc: "Eye exams + corrective lenses", icon: "steth", features: ["$300 limit", "$80/yr", "Glaucoma screening"] },
+    ],
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [page, setPage] = useState("landing"); // landing | opd | ipd | admin
+  const [country, setCountry] = useState("cambodia");
   const [apiOk, setApiOk] = useState(null);
+  const [productCatalog, setProductCatalog] = useState(null);
 
   useEffect(() => {
     apiCall("/health").then(() => setApiOk(true)).catch(() => setApiOk(false));
   }, []);
+
+  // Fetch product catalog from backend when country changes
+  useEffect(() => {
+    apiCall(`/api/v1/products/${country}`)
+      .then(data => setProductCatalog(data))
+      .catch(() => setProductCatalog(null)); // fallback to local COUNTRIES data
+  }, [country]);
+
+  const countryData = COUNTRIES[country];
+  const iconMap = { steth: <I.Steth/>, calendar: <I.Calendar/>, package: <I.Package/>, bed: <I.Bed/>, heart: <I.Heart/> };
 
   return (
     <><style>{CSS}</style>
@@ -301,7 +350,7 @@ export default function App() {
       {/* ─── NAV ─── */}
       <nav className="nav">
         <div className="nav-brand" onClick={() => setPage("landing")}>
-          <Logo size={48} />
+          <Logo size={34} />
           <span className="nav-title">DAC HealthPrice</span>
         </div>
         <div className="nav-links">
@@ -309,6 +358,16 @@ export default function App() {
           <button className={`nav-link ${page==="opd"?"active":""}`} onClick={() => setPage("opd")}>OPD</button>
           <button className={`nav-link ${page==="ipd"?"ipd-active":""}`} onClick={() => setPage("ipd")}>IPD</button>
           <button className={`nav-link ${page==="admin"?"active":""}`} onClick={() => setPage("admin")}>Admin</button>
+          {/* Country Selector */}
+          <div style={{display:"flex",gap:2,marginLeft:8,padding:2,background:"var(--surf2)",borderRadius:8}}>
+            {Object.entries(COUNTRIES).map(([k,v]) => (
+              <button key={k} onClick={() => setCountry(k)} style={{
+                padding:"5px 10px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:country===k?600:400,
+                background:country===k?"white":"transparent",color:country===k?"var(--txt)":"var(--txt3)",
+                boxShadow:country===k?"0 1px 3px rgba(0,0,0,.08)":"none",transition:"all .2s",fontFamily:"var(--fb)",
+              }}>{v.flag} {v.code}</button>
+            ))}
+          </div>
         </div>
         <div className={`status ${apiOk?"ok":"off"}`}>
           <div className={`dot ${apiOk?"ok":"off"}`}/>{apiOk?"API Connected":"Offline Mode"}
@@ -319,40 +378,106 @@ export default function App() {
       {page === "landing" && (
         <div className="landing" style={{animation:"fadeUp .5s ease both"}}>
           <div className="landing-hero">
-            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><Logo size={80} /></div>
-            <h1>Healthcare Pricing,<br/><span>Powered by AI</span></h1>
-            <p>Instant, transparent pricing for outpatient visits and inpatient admissions. Powered by machine learning, governed by your data.</p>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><Logo size={56} /></div>
+            <h1>DAC HealthPrice,<br/><span>Powered by AI</span></h1>
+            <p>Instant, transparent pricing for outpatient and inpatient care in {countryData.name}. Powered by machine learning.</p>
           </div>
+
+          {/* Country Selector — prominent on landing */}
+          <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:36}}>
+            {Object.entries(COUNTRIES).map(([k, v]) => (
+              <button key={k} onClick={() => setCountry(k)} style={{
+                display:"flex",alignItems:"center",gap:8,padding:"12px 24px",borderRadius:12,
+                border:country===k?"2px solid var(--pri)":"1.5px solid var(--surf3)",
+                background:country===k?"var(--pri-bg)":"white",cursor:"pointer",
+                transition:"all .2s",fontFamily:"var(--fb)",fontSize:15,fontWeight:country===k?600:400,
+                color:country===k?"var(--pri)":"var(--txt2)",
+              }}>
+                <span style={{fontSize:22}}>{v.flag}</span> {v.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Market Context */}
+          <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:36,flexWrap:"wrap"}}>
+            {[
+              {label:"Healthcare spend", value: countryData.market.spend},
+              {label:"Out-of-pocket", value: countryData.market.oop},
+              {label:"UHC score", value: countryData.market.uhc + "/100"},
+              ...(countryData.market.shi ? [{label:"SHI coverage", value: countryData.market.shi.split("(")[0].trim()}] : []),
+            ].map((s,i)=>(
+              <div key={i} style={{padding:"10px 18px",background:"var(--surf2)",borderRadius:10,textAlign:"center"}}>
+                <div style={{fontSize:11,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".5px",fontWeight:600}}>{s.label}</div>
+                <div style={{fontSize:16,fontWeight:600,color:"var(--txt)",fontFamily:"var(--fd)",fontStyle:"italic",marginTop:2}}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {countryData.market.note && <p style={{textAlign:"center",fontSize:13,color:"var(--txt3)",maxWidth:600,margin:"0 auto 32px",lineHeight:1.5}}>{countryData.market.note}</p>}
+
+          {/* OPD + IPD Cards */}
           <div className="landing-cards">
-            {/* OPD Card */}
             <div className="lcard opd" onClick={() => setPage("opd")}>
-              <div className="lcard-badge"><I.Steth /> Outpatient</div>
+              <div className="lcard-badge"><I.Steth /> Outpatient — {countryData.name}</div>
               <h3>OPD Pricing</h3>
-              <p>Per-visit pricing, annual plans, and care packages for outpatient services.</p>
+              <p>Per-visit pricing, annual plans, and care packages for outpatient services in {countryData.name}.</p>
               <div className="lcard-features">
-                <div className="lcard-feat">12 specialist consultations</div>
-                <div className="lcard-feat">13 lab tests and diagnostics</div>
-                <div className="lcard-feat">10 minor procedures</div>
-                <div className="lcard-feat">3 annual plan tiers</div>
-                <div className="lcard-feat">4 bundled care packages</div>
+                {countryData.products.filter(p=>p.cat==="OPD").map((p,i)=><div className="lcard-feat" key={i}>{p.name}: {p.desc}</div>)}
               </div>
               <button className="lcard-btn" onClick={(e)=>{e.stopPropagation();setPage("opd")}}>Get OPD Quote <I.Arrow /></button>
             </div>
-            {/* IPD Card */}
             <div className="lcard ipd" onClick={() => setPage("ipd")}>
-              <div className="lcard-badge"><I.Bed /> Inpatient</div>
+              <div className="lcard-badge"><I.Bed /> Inpatient — {countryData.name}</div>
               <h3>IPD Pricing</h3>
-              <p>Admission estimates, surgery costs, annual inpatient plans, and surgical packages.</p>
+              <p>Admission estimates, surgery costs, annual inpatient plans, and surgical packages in {countryData.name}.</p>
               <div className="lcard-features">
-                <div className="lcard-feat">5 ward types (General to NICU)</div>
-                <div className="lcard-feat">12 surgery categories</div>
-                <div className="lcard-feat">3 annual inpatient plans</div>
-                <div className="lcard-feat">4 surgical care packages</div>
-                <div className="lcard-feat">Length-of-stay modeling</div>
+                {countryData.products.filter(p=>p.cat==="IPD").map((p,i)=><div className="lcard-feat" key={i}>{p.name}: {p.desc}</div>)}
               </div>
               <button className="lcard-btn" onClick={(e)=>{e.stopPropagation();setPage("ipd")}}>Get IPD Quote <I.Arrow /></button>
             </div>
           </div>
+
+          {/* Optional Add-ons */}
+          {countryData.products.filter(p=>p.cat==="Optional").length > 0 && (
+            <div style={{marginTop:28}}>
+              <h3 style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:400,fontStyle:"italic",textAlign:"center",marginBottom:16}}>Optional add-ons for {countryData.name}</h3>
+              <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+                {countryData.products.filter(p=>p.cat==="Optional").map((p,i) => (
+                  <div key={i} style={{background:"white",border:"1px solid var(--surf3)",borderRadius:14,padding:"20px 24px",minWidth:200,flex:"0 1 240px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                      {iconMap[p.icon]||<I.Steth/>}
+                      <span style={{fontWeight:600,fontSize:14}}>{p.name}</span>
+                    </div>
+                    <p style={{fontSize:12,color:"var(--txt2)",marginBottom:8,lineHeight:1.4}}>{p.desc}</p>
+                    <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                      {p.features.map((f,j) => <span key={j} style={{fontSize:11,color:"var(--txt3)"}}>{f}</span>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full Product Catalog (collapsible) */}
+          <details style={{marginTop:36,background:"white",borderRadius:14,border:"1px solid var(--surf3)",padding:24}}>
+            <summary style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:400,fontStyle:"italic",cursor:"pointer",marginBottom:16}}>
+              View all {countryData.products.length} products for {countryData.name}
+            </summary>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+              {countryData.products.map((p,i) => (
+                <div key={i} style={{padding:16,borderRadius:10,border:"1px solid var(--surf3)",background:"var(--surf2)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <span style={{fontWeight:600,fontSize:13}}>{p.name}</span>
+                    <span style={{padding:"2px 8px",borderRadius:6,fontSize:10,fontWeight:600,
+                      background:p.cat==="OPD"?"var(--pri-bg)":p.cat==="IPD"?"var(--ipd-bg)":"var(--surf2)",
+                      color:p.cat==="OPD"?"var(--pri)":p.cat==="IPD"?"var(--ipd)":"var(--txt3)"
+                    }}>{p.cat}</span>
+                  </div>
+                  <p style={{fontSize:12,color:"var(--txt2)",marginBottom:8}}>{p.desc}</p>
+                  {p.features.map((f,j) => <div key={j} style={{fontSize:11,color:"var(--txt3)",paddingLeft:10,borderLeft:"2px solid var(--surf3)",marginBottom:3}}>{f}</div>)}
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
       )}
 
@@ -368,13 +493,14 @@ export default function App() {
       {/* ─── FOOTER ─── */}
       <footer className="footer">
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <Logo size={36} />
-          <span style={{fontFamily:"var(--fd)",fontSize:14,fontStyle:"italic"}}>DAC HealthPrice Platform</span>
+          <Logo size={26} />
+          <span style={{fontFamily:"var(--fd)",fontSize:14,fontStyle:"italic"}}>DAC HealthPrice</span>
         </div>
         <div className="footer-tags">
+          <span className="footer-tag">{countryData.flag} {countryData.name}</span>
           <span className="footer-tag">OPD</span><span className="footer-tag">IPD</span>
           <span className="footer-tag">FastAPI</span><span className="footer-tag">sklearn</span>
-          <span className="footer-tag">Supabase</span><span className="footer-tag">Airflow</span>
+          <span className="footer-tag">Supabase</span>
         </div>
         <p>Demo — Synthetic Data</p>
       </footer>
