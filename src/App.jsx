@@ -7,7 +7,7 @@ const API = "https://opd-backend-685i.onrender.com";
 
 // Logo: replace with your actual logo URL or import
 // Option 1: URL
-const LOGO_URL = null; // e.g. "https://yourdomain.com/logo.png"
+const LOGO_URL = "/DAC.jpg"; // e.g. "https://yourdomain.com/logo.png"
 // Option 2: If using a local file, put logo.png in /public and use "/logo.png"
 // Option 3: Set to null to use the built-in text logo
 
