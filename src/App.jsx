@@ -301,8 +301,8 @@ export default function App() {
       {/* ─── NAV ─── */}
       <nav className="nav">
         <div className="nav-brand" onClick={() => setPage("landing")}>
-          <Logo size={34} />
-          <span className="nav-title">HealthPrice</span>
+          <Logo size={48} />
+          <span className="nav-title">DAC HealthPrice</span>
         </div>
         <div className="nav-links">
           <button className={`nav-link ${page==="landing"?"active":""}`} onClick={() => setPage("landing")}>Home</button>
@@ -319,7 +319,7 @@ export default function App() {
       {page === "landing" && (
         <div className="landing" style={{animation:"fadeUp .5s ease both"}}>
           <div className="landing-hero">
-            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><Logo size={56} /></div>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><Logo size={80} /></div>
             <h1>Healthcare Pricing,<br/><span>Powered by AI</span></h1>
             <p>Instant, transparent pricing for outpatient visits and inpatient admissions. Powered by machine learning, governed by your data.</p>
           </div>
@@ -368,8 +368,8 @@ export default function App() {
       {/* ─── FOOTER ─── */}
       <footer className="footer">
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <Logo size={26} />
-          <span style={{fontFamily:"var(--fd)",fontSize:14,fontStyle:"italic"}}>HealthPrice Platform</span>
+          <Logo size={36} />
+          <span style={{fontFamily:"var(--fd)",fontSize:14,fontStyle:"italic"}}>DAC HealthPrice Platform</span>
         </div>
         <div className="footer-tags">
           <span className="footer-tag">OPD</span><span className="footer-tag">IPD</span>
