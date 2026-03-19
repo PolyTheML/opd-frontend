@@ -482,10 +482,10 @@ export default function App() {
       )}
 
       {/* ─── OPD PAGE ─── */}
-      {page === "opd" && <OPDPage apiOk={apiOk} onBack={() => setPage("landing")} />}
+      {page === "opd" && <OPDPage apiOk={apiOk} onBack={() => setPage("landing")} country={country} />}
 
       {/* ─── IPD PAGE ─── */}
-      {page === "ipd" && <IPDPage apiOk={apiOk} onBack={() => setPage("landing")} />}
+      {page === "ipd" && <IPDPage apiOk={apiOk} onBack={() => setPage("landing")} country={country} />}
 
       {/* ─── ADMIN ─── */}
       {page === "admin" && <AdminDashboard apiOk={apiOk} />}
@@ -511,14 +511,25 @@ export default function App() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPD PAGE (unchanged logic, extracted to component)
 // ═══════════════════════════════════════════════════════════════════════════════
-function OPDPage({ apiOk, onBack }) {
+function OPDPage({ apiOk, onBack, country }) {
+  const regions = COUNTRIES[country]?.regions || Object.keys(RGN);
+  const defaultRegion = regions[0];
   const [mode, setMode] = useState("visit");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [isLocal, setIsLocal] = useState(false);
-  const [visit, setVisit] = useState({service_type:"general_consultation",age:35,gender:"Male",region:"Phnom Penh",facility_type:"Private Hospital",specialty:"Internal Medicine",lab_tests:["Complete Blood Count"],procedure:"Wound Care",has_insurance:false,chronic_conditions:0});
-  const [annual, setAnnual] = useState({age:35,gender:"Male",region:"Phnom Penh",plan_tier:"Plus",chronic_conditions:0,family_size:1});
-  const [pkg, setPkg] = useState({package_type:"health_screening",age:35,gender:"Male",region:"Phnom Penh",add_ons:[]});
+  const [visit, setVisit] = useState({service_type:"general_consultation",age:35,gender:"Male",region:defaultRegion,facility_type:"Private Hospital",specialty:"Internal Medicine",lab_tests:["Complete Blood Count"],procedure:"Wound Care",has_insurance:false,chronic_conditions:0});
+  const [annual, setAnnual] = useState({age:35,gender:"Male",region:defaultRegion,plan_tier:"Plus",chronic_conditions:0,family_size:1});
+  const [pkg, setPkg] = useState({package_type:"health_screening",age:35,gender:"Male",region:defaultRegion,add_ons:[]});
+
+  // Reset regions when country changes
+  useEffect(() => {
+    const r = COUNTRIES[country]?.regions?.[0] || "Phnom Penh";
+    setVisit(p => ({...p, region: r}));
+    setAnnual(p => ({...p, region: r}));
+    setPkg(p => ({...p, region: r}));
+    setResult(null);
+  }, [country]);
 
   const calculate = useCallback(async () => {
     setLoading(true); setResult(null); setIsLocal(false);
@@ -565,19 +576,19 @@ function OPDPage({ apiOk, onBack }) {
           {visit.service_type==="lab_test"&&<div className="fg"><label className="fl">Select tests</label><div className="chips">{Object.keys(LABS).map(t=><div key={t} className={`chip ${(visit.lab_tests||[]).includes(t)?"sel":""}`} onClick={()=>toggleLab(t)}>{t} (${LABS[t]})</div>)}</div></div>}
           {visit.service_type==="minor_procedure"&&<div className="fg"><label className="fl">Procedure</label><div className="sw"><select className="fs" value={visit.procedure} onChange={e=>uv("procedure",e.target.value)}>{Object.keys(PROCS).map(p=><option key={p}>{p}</option>)}</select><I.Chev/></div></div>}
           <div className="fr"><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={visit.age} onChange={e=>uv("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={visit.gender} onChange={e=>uv("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div></div>
-          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={visit.region} onChange={e=>uv("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Facility</label><div className="sw"><select className="fs" value={visit.facility_type} onChange={e=>uv("facility_type",e.target.value)}>{Object.keys(FAC).map(f=><option key={f}>{f}</option>)}</select><I.Chev/></div></div></div>
+          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={visit.region} onChange={e=>uv("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Facility</label><div className="sw"><select className="fs" value={visit.facility_type} onChange={e=>uv("facility_type",e.target.value)}>{Object.keys(FAC).map(f=><option key={f}>{f}</option>)}</select><I.Chev/></div></div></div>
           <div className="fr"><div className="fg"><label className="fl">Chronic conditions</label><input className="fi" type="number" min="0" max="10" value={visit.chronic_conditions} onChange={e=>uv("chronic_conditions",Math.max(0,Math.min(10,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Insurance</label><div className="toggle-row"><button className={`toggle ${visit.has_insurance?"on":"off"}`} onClick={()=>uv("has_insurance",!visit.has_insurance)}/><span style={{fontSize:13,color:"var(--txt2)"}}>{visit.has_insurance?"Insured (-30%)":"No insurance"}</span></div></div></div>
         </>}
         {mode==="annual"&&<>
           <div className="fg"><label className="fl">Plan tier</label><div className="chips">{["Essential","Plus","Premium"].map(t=><div key={t} className={`chip ${annual.plan_tier===t?"sel":""}`} onClick={()=>ua("plan_tier",t)}>{t} — ${OPD_PLANS[t].base}/yr</div>)}</div></div>
           <div className="fr"><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={annual.age} onChange={e=>ua("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={annual.gender} onChange={e=>ua("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div></div>
-          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={annual.region} onChange={e=>ua("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Family size</label><input className="fi" type="number" min="1" max="10" value={annual.family_size} onChange={e=>ua("family_size",Math.max(1,Math.min(10,parseInt(e.target.value)||1)))}/></div></div>
+          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={annual.region} onChange={e=>ua("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Family size</label><input className="fi" type="number" min="1" max="10" value={annual.family_size} onChange={e=>ua("family_size",Math.max(1,Math.min(10,parseInt(e.target.value)||1)))}/></div></div>
           <div className="fg"><label className="fl">Chronic conditions</label><input className="fi" type="number" min="0" max="10" value={annual.chronic_conditions} onChange={e=>ua("chronic_conditions",Math.max(0,Math.min(10,parseInt(e.target.value)||0)))}/></div>
         </>}
         {mode==="package"&&<>
           <div className="fg"><label className="fl">Package</label><div className="chips">{Object.entries(PKGS).map(([k,v])=><div key={k} className={`chip ${pkg.package_type===k?"sel":""}`} onClick={()=>up("package_type",k)}>{v.name} — ${v.base}</div>)}</div></div>
           <div className="fr"><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={pkg.age} onChange={e=>up("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={pkg.gender} onChange={e=>up("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div></div>
-          <div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={pkg.region} onChange={e=>up("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div>
+          <div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={pkg.region} onChange={e=>up("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div>
         </>}
         <button className="btn opd-btn" onClick={calculate} disabled={loading}>{loading?<><I.Spin/> Calculating...</>:<>Get Price <I.Arrow/></>}</button>
       </div>
@@ -607,15 +618,26 @@ function OPDPage({ apiOk, onBack }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // IPD PAGE (new)
 // ═══════════════════════════════════════════════════════════════════════════════
-function IPDPage({ apiOk, onBack }) {
+function IPDPage({ apiOk, onBack, country }) {
+  const regions = COUNTRIES[country]?.regions || Object.keys(RGN);
+  const defaultRegion = regions[0];
   const [mode, setMode] = useState("admission");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [isLocal, setIsLocal] = useState(false);
 
-  const [adm, setAdm] = useState({age:45,gender:"Male",region:"Phnom Penh",ward_type:"Private Room",surgery_type:"Appendectomy",los_days:3,comorbidities:0,has_insurance:false});
-  const [plan, setPlan] = useState({age:45,gender:"Male",region:"Phnom Penh",plan_tier:"Enhanced",comorbidities:0,family_size:1});
-  const [pkg, setPkg] = useState({package_type:"general_surgery",age:45,gender:"Male",region:"Phnom Penh"});
+  const [adm, setAdm] = useState({age:45,gender:"Male",region:defaultRegion,ward_type:"Private Room",surgery_type:"Appendectomy",los_days:3,comorbidities:0,has_insurance:false});
+  const [plan, setPlan] = useState({age:45,gender:"Male",region:defaultRegion,plan_tier:"Enhanced",comorbidities:0,family_size:1});
+  const [pkg, setPkg] = useState({package_type:"general_surgery",age:45,gender:"Male",region:defaultRegion});
+
+  // Reset regions when country changes
+  useEffect(() => {
+    const r = COUNTRIES[country]?.regions?.[0] || "Phnom Penh";
+    setAdm(p => ({...p, region: r}));
+    setPlan(p => ({...p, region: r}));
+    setPkg(p => ({...p, region: r}));
+    setResult(null);
+  }, [country]);
 
   const calculate = useCallback(async () => {
     setLoading(true); setResult(null); setIsLocal(false);
@@ -660,21 +682,21 @@ function IPDPage({ apiOk, onBack }) {
           <div className="fg"><label className="fl">Ward type</label><div className="chips">{Object.keys(IPD_WARD).map(w=><div key={w} className={`chip ${adm.ward_type===w?"ipd-sel":""}`} onClick={()=>ua("ward_type",w)}>{w}{w!=="General Ward"?` (${IPD_WARD[w]}x)`:""}</div>)}</div></div>
           <div className="fg"><label className="fl">Surgery</label><div className="sw"><select className="fs" value={adm.surgery_type} onChange={e=>ua("surgery_type",e.target.value)}><option value="">No surgery (medical admission)</option>{Object.keys(IPD_SURGERY).map(s=><option key={s} value={s}>{s} (${IPD_SURGERY[s].toLocaleString()})</option>)}</select><I.Chev/></div></div>
           <div className="fr"><div className="fg"><label className="fl">Length of stay (days)</label><input className="fi" type="number" min="1" max="60" value={adm.los_days} onChange={e=>ua("los_days",Math.max(1,Math.min(60,parseInt(e.target.value)||1)))}/></div><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={adm.age} onChange={e=>ua("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div></div>
-          <div className="fr"><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={adm.gender} onChange={e=>ua("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={adm.region} onChange={e=>ua("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div></div>
+          <div className="fr"><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={adm.gender} onChange={e=>ua("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={adm.region} onChange={e=>ua("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div></div>
           <div className="fr"><div className="fg"><label className="fl">Comorbidities</label><input className="fi" type="number" min="0" max="10" value={adm.comorbidities} onChange={e=>ua("comorbidities",Math.max(0,Math.min(10,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Insurance</label><div className="toggle-row"><button className={`toggle ${adm.has_insurance?"on":"off"}`} onClick={()=>ua("has_insurance",!adm.has_insurance)}/><span style={{fontSize:13,color:"var(--txt2)"}}>{adm.has_insurance?"Insured (-25%)":"No insurance"}</span></div></div></div>
         </>}
 
         {mode==="annual"&&<>
           <div className="fg"><label className="fl">Plan tier</label><div className="chips">{Object.entries(IPD_PLANS).map(([k,v])=><div key={k} className={`chip ${plan.plan_tier===k?"ipd-sel":""}`} onClick={()=>up("plan_tier",k)}>{k} — ${v.base}/yr</div>)}</div></div>
           <div className="fr"><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={plan.age} onChange={e=>up("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={plan.gender} onChange={e=>up("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div></div>
-          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={plan.region} onChange={e=>up("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Family size</label><input className="fi" type="number" min="1" max="10" value={plan.family_size} onChange={e=>up("family_size",Math.max(1,Math.min(10,parseInt(e.target.value)||1)))}/></div></div>
+          <div className="fr"><div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={plan.region} onChange={e=>up("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div><div className="fg"><label className="fl">Family size</label><input className="fi" type="number" min="1" max="10" value={plan.family_size} onChange={e=>up("family_size",Math.max(1,Math.min(10,parseInt(e.target.value)||1)))}/></div></div>
           <div className="fg"><label className="fl">Comorbidities</label><input className="fi" type="number" min="0" max="10" value={plan.comorbidities} onChange={e=>up("comorbidities",Math.max(0,Math.min(10,parseInt(e.target.value)||0)))}/></div>
         </>}
 
         {mode==="package"&&<>
           <div className="fg"><label className="fl">Surgical package</label><div className="chips">{Object.entries(IPD_PACKAGES).map(([k,v])=><div key={k} className={`chip ${pkg.package_type===k?"ipd-sel":""}`} onClick={()=>upk("package_type",k)}>{v.name} — ${v.base.toLocaleString()}</div>)}</div></div>
           <div className="fr"><div className="fg"><label className="fl">Age</label><input className="fi" type="number" min="0" max="100" value={pkg.age} onChange={e=>upk("age",Math.max(0,Math.min(100,parseInt(e.target.value)||0)))}/></div><div className="fg"><label className="fl">Gender</label><div className="sw"><select className="fs" value={pkg.gender} onChange={e=>upk("gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select><I.Chev/></div></div></div>
-          <div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={pkg.region} onChange={e=>upk("region",e.target.value)}>{Object.keys(RGN).map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div>
+          <div className="fg"><label className="fl">Region</label><div className="sw"><select className="fs" value={pkg.region} onChange={e=>upk("region",e.target.value)}>{regions.map(r=><option key={r}>{r}</option>)}</select><I.Chev/></div></div>
         </>}
 
         <button className="btn ipd-btn" onClick={calculate} disabled={loading}>{loading?<><I.Spin/> Calculating...</>:<>Get Price <I.Arrow/></>}</button>
